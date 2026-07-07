@@ -70,7 +70,8 @@ function health(overrides: HealthOverrides = {}): HealthCheck {
 
 const baselineItems = buildProductionReadiness(health());
 const baselineSummary = summarizeProductionReadiness(baselineItems);
-assert.equal(baselineSummary.total, 9);
+assert.equal(baselineSummary.total, 10);
+assert.equal(baselineItems.find((item) => item.id === "preview-approval")?.status, "optional");
 assert.equal(baselineItems.find((item) => item.id === "database")?.status, "missing");
 assert.equal(baselineItems.find((item) => item.id === "snapshots")?.status, "ready");
 assert.equal(baselineItems.find((item) => item.id === "openai")?.status, "optional");
@@ -97,7 +98,7 @@ const configuredItems = buildProductionReadiness(
 const configuredSummary = summarizeProductionReadiness(configuredItems);
 assert.equal(configuredSummary.ready, 9);
 assert.equal(configuredSummary.missing, 0);
-assert.equal(configuredSummary.optional, 0);
+assert.equal(configuredSummary.optional, 1);
 
 const brokenSnapshotItems = buildProductionReadiness(
   health({

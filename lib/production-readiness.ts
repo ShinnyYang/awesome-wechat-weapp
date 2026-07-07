@@ -26,6 +26,13 @@ export function buildProductionReadiness(health: HealthCheck): ProductionReadine
 
   return [
     item({
+      id: "preview-approval",
+      title: "Preview 人工确认",
+      status: "optional",
+      detail: "PR Preview 需要人工查看页面、交互和移动端表现后再合并到 main。",
+      action: "确认 Preview 无误后，将 PR 标记 ready 并合并到 main，再等待 Vercel Production 部署。"
+    }),
+    item({
       id: "site-url",
       title: "站点 URL",
       status: health.integrations.siteUrl ? "ready" : "missing",
