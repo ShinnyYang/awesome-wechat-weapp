@@ -8,7 +8,7 @@
 
 当前仓库已经具备可访问的 Production 静态 MVP：Next.js 产品页面、资源 API、规则型 AI 兜底、Doctor、Weekly、Admin、Cron 入口、Drizzle schema、Vercel 配置和验证脚本均已落地。本地校验、生产构建、Vercel Preview 验证、PR 检查和 Vercel Production 别名验证已通过。
 
-尚未完成的关键事项是外部生产依赖：需要配置线上 Postgres、Cron Secret、Admin Token、GitHub Token、Upstash Redis、Vercel Blob，并在用户确认后再配置可选 OpenAI Key。当前 Production 使用静态 JSON 和规则型 AI 兜底正常运行。
+尚未完成的关键事项是外部生产依赖收口：需要配置线上 Postgres、GitHub Token，并在用户确认后再配置可选 OpenAI Key。Cron Secret、Admin Token、Vercel Blob 和 Upstash Redis 资源已在 Production 侧配置；Upstash 通过 Vercel Marketplace 注入 `KV_*` 环境变量，本分支已补齐代码兼容，合并部署后需要复验 Production health。
 
 ## 2. 进度总览
 
@@ -20,7 +20,7 @@
 | P2.1 Vercel Production 部署 | 已完成 | PR #360 和 PR #361 已合并到 `main`；Production 部署 Ready；生产别名 `https://wechat-miniapp-radar.vercel.app` 通过 `npm run deployment:verify -- <production-url>` 和 `npm run mvp:check -- <production-url>`；`Verify Vercel Production` 已恢复成功 | 继续 P3 外部依赖 |
 | P3 Postgres 主库 | 未开始 | `DATABASE_URL` 未配置 | 选择 Neon 或 Supabase，执行迁移和导入 |
 | P4 采集与评分 Cron | 进行中 | Cron 代码和鉴权测试已具备；Production 已配置 `CRON_SECRET`，`/api/cron/enrich` 和 `/api/cron/weekly` dry-run 通过 | 配置 `GITHUB_TOKEN`，再做采集额度和真实调度观察 |
-| P5 Redis 缓存/限流/任务锁 | 待生产配置 | 本地测试覆盖降级、锁冲突和失败兜底 | 创建 Upstash Redis 并验证 |
+| P5 Redis 缓存/限流/任务锁 | 进行中 | Upstash Redis resource `store_YahoH3IFK7st04eQ` 已连接 Production；本分支已兼容 `KV_REST_API_URL`/`KV_REST_API_TOKEN` 并通过本地测试 | PR 合并部署后复验 `/api/health`、部署校验和任务锁 |
 | P6 Blob 报告和快照 | 已完成 | Production 已创建 Vercel Blob Store `wechat-miniapp-radar-artifacts` 并配置 `BLOB_READ_WRITE_TOKEN`；Doctor 报告生产上传返回 Blob URL | 后续按免费额度观察 Blob 文件数和存储量 |
 | P7 Admin 运维闭环 | 已完成 | Production 已配置 `ADMIN_TOKEN`；`/api/admin/readiness` 授权读取通过；Admin API 和 readiness 已实现 | Postgres 接入后再验证资源维护写入链路 |
 | P8 真实 AI | 暂缓 | 规则型 AI 可用，输出校验已覆盖 | 用户确认后再配置 `OPENAI_API_KEY` |
@@ -43,7 +43,7 @@
 | I-003 | `CRON_SECRET` 未配置 | 生产 Cron 不能授权运行 | 已关闭 | 已在 Vercel Production 配置并 redeploy；Cron enrich/weekly dry-run 通过 |
 | I-004 | `ADMIN_TOKEN` 未配置 | Admin readiness 只能验证未授权保护 | 已关闭 | 已在 Vercel Production 配置并 redeploy；Admin readiness 授权读取通过 |
 | I-005 | `GITHUB_TOKEN` 未配置 | GitHub 采集额度低 | 打开 | 配置只读 token 或降低采集频率 |
-| I-006 | Redis 未配置 | 生产环境缺分布式限流和任务锁 | 打开 | 接入 Upstash Redis |
+| I-006 | Production 代码尚未识别 Vercel KV Redis 变量 | 生产环境已有 Redis 资源，但当前已部署代码只识别 `UPSTASH_REDIS_*` 旧命名 | 进行中 | 本分支已兼容 `UPSTASH_REDIS_*` 与 `KV_*` 两组 REST 变量；合并部署后关闭 |
 | I-007 | Blob 未配置 | 周报、Doctor 报告和导出快照不能归档 | 已关闭 | 已创建 Vercel Blob Store 并连接项目；`/api/doctor` 生产上传报告返回 Blob URL |
 | I-008 | 真实 AI 未启用 | Advisor、摘要、周报、Doctor 只能使用规则兜底 | 暂缓 | 用户确认后再配置 `OPENAI_API_KEY` |
 
@@ -91,6 +91,8 @@
 | 2026-07-07 | Cron/Admin 授权生产复验 | `VERIFY_CRON_SECRET=<secret> VERIFY_ADMIN_TOKEN=<secret> EXPECTED_CANONICAL_URL=https://wechat-miniapp-radar.vercel.app npm run deployment:verify -- https://wechat-miniapp-radar.vercel.app` | 通过 | 32 pass / 5 warn / 0 fail；Cron enrich/weekly dry-run 和 Admin readiness 授权读取均通过 |
 | 2026-07-07 | Vercel Blob Store 配置 | `npx vercel blob create-store wechat-miniapp-radar-artifacts --access public --environment production --yes`、Production deploy | 通过 | Blob Store `store_3a5qRZebeUOkJe88` 已创建并连接项目；`/api/health` 显示 `blob:true` |
 | 2026-07-07 | Vercel Blob 生产写入验证 | `POST /api/doctor` with `uploadReport:true` | 通过 | Doctor 报告上传成功，返回 `*.public.blob.vercel-storage.com` Blob URL；生产部署校验为 30 pass / 4 warn / 0 fail |
+| 2026-07-07 | Upstash Redis 生产资源配置 | `npx vercel marketplace add` / Vercel Marketplace Upstash Redis resource | 通过 | Resource `wechat-miniapp-radar-redis` / `store_YahoH3IFK7st04eQ` 已连接 Production；Vercel 注入 `KV_REST_API_URL`、`KV_REST_API_TOKEN` 等变量 |
+| 2026-07-07 | Redis 环境变量兼容本地验证 | `npm run check` | 通过 | 兼容 `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` 和 `KV_REST_API_URL`/`KV_REST_API_TOKEN`；覆盖 health、task-lock、cron-routes、mvp-check、production-bootstrap、workflow 检查 |
 
 ## 6. 下一步执行清单
 
@@ -120,9 +122,10 @@ npm run mvp:check -- https://wechat-miniapp-radar.vercel.app
 
 ### 6.3 数据与集成
 
-1. 创建 Neon 或 Supabase Postgres。
-2. 配置 `DATABASE_URL`。
-3. 执行：
+1. 合并 Redis 环境变量兼容分支，等待 Production 部署后复验 `/api/health` 中 `upstashRedis:true`。
+2. 创建 Neon 或 Supabase Postgres。
+3. 配置 `DATABASE_URL`。
+4. 执行：
 
 ```bash
 npm run db:migrate
@@ -130,8 +133,8 @@ npm run db:import
 EXPECT_DATABASE=1 npm run db:verify
 ```
 
-4. 配置 `CRON_SECRET`、`ADMIN_TOKEN`、`GITHUB_TOKEN`、Redis 和 Blob。
-5. 执行：
+5. 配置 `GITHUB_TOKEN`。
+6. 执行：
 
 ```bash
 EXPECT_GITHUB=1 EXPECT_BLOB=1 EXPECT_UPSTASH_REDIS=1 npm run integrations:verify
