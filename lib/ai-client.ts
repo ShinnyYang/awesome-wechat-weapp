@@ -200,6 +200,12 @@ function parseSseDataRecords(text: string) {
   return records;
 }
 
+function describeHttpResult(response: Response, text: string) {
+  const contentType = response.headers.get("content-type") ?? "none";
+  const sseRecords = parseSseDataRecords(text).length;
+  return `httpStatus=${response.status}; responseContentType=${contentType}; responseTextLength=${text.length}; sseRecords=${sseRecords}`;
+}
+
 function stringField(record: Record<string, unknown>, name: string) {
   const value = record[name];
   return typeof value === "string" ? value : "";
@@ -347,7 +353,9 @@ async function requestChatCompletion<T>({
   }
 
   if (content.trim().length === 0) {
-    throw new Error(`AI provider returned an empty response for ${model}. ${describeEmptyChoice(payload?.choices?.[0])}; ${describeCompletionPayload(payload)}`);
+    throw new Error(
+      `AI provider returned an empty response for ${model}. ${describeHttpResult(response, text)}; ${describeEmptyChoice(payload?.choices?.[0])}; ${describeCompletionPayload(payload)}`
+    );
   }
 
   return parseJsonObject<T>(content);
@@ -396,7 +404,7 @@ async function requestResponsesCompletion<T>({
   }
 
   if (content.trim().length === 0) {
-    throw new Error(`AI provider returned an empty response for ${model}. ${describeResponsesPayload(payload)}`);
+    throw new Error(`AI provider returned an empty response for ${model}. ${describeHttpResult(response, text)}; ${describeResponsesPayload(payload)}`);
   }
 
   return parseJsonObject<T>(content);
