@@ -265,13 +265,26 @@ const readmeStillLooksLikeAwesomeList =
   Boolean(readme?.includes("## 目录")) ||
   Boolean(readme?.includes("[↑ 返回目录 ↑]")) ||
   Boolean(readme?.includes("## 工具\n\n- [uni-app"));
+const readmeDeveloperSections = ["## 本地运行", "## 常用任务", "## 部署环境变量", "## 部署检查", "## 数据维护"];
+const readmeIncludesDeveloperSections = readmeDeveloperSections.some((section) => readme?.includes(section));
 checks.push(
   result(
     "readme:product-positioning",
-    readme?.includes("## 数据概览") && readme.includes("## 核心样例") && !readmeStillLooksLikeAwesomeList ? "pass" : "fail",
-    readme?.includes("## 数据概览") && readme.includes("## 核心样例") && !readmeStillLooksLikeAwesomeList
-      ? "README presents MiniProgram Radar as a product instead of a full awesome list."
-      : "README should show product capabilities and data entry points, not the full awesome list."
+    readme?.includes("## 适合谁") && readme.includes("## 可以做什么") && readme.includes("## 数据概览") && readme.includes("## 核心样例") && !readmeStillLooksLikeAwesomeList && !readmeIncludesDeveloperSections ? "pass" : "fail",
+    readme?.includes("## 适合谁") && readme.includes("## 可以做什么") && readme.includes("## 数据概览") && readme.includes("## 核心样例") && !readmeStillLooksLikeAwesomeList && !readmeIncludesDeveloperSections
+      ? "README is user-facing and presents MiniProgram Radar as a product."
+      : "README should be user-facing, without developer setup, deployment, or full awesome list sections."
+  )
+);
+
+const agents = await readText("AGENTS.md");
+checks.push(
+  result(
+    "agents:developer-guide",
+    Boolean(agents?.includes("## 本地运行") && agents.includes("## 常用任务") && agents.includes("## 环境变量") && agents.includes("## 部署检查")) ? "pass" : "fail",
+    Boolean(agents?.includes("## 本地运行") && agents.includes("## 常用任务") && agents.includes("## 环境变量") && agents.includes("## 部署检查"))
+      ? "AGENTS.md contains developer setup, commands, environment, and deployment guidance."
+      : "AGENTS.md should contain developer setup, commands, environment, and deployment guidance."
   )
 );
 
